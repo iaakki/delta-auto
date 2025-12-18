@@ -1,5 +1,6 @@
 package dev.shadoe.delta.settings
 
+import android.Manifest
 import android.app.Activity
 import android.content.ComponentName
 import android.content.Context
@@ -53,8 +54,11 @@ import dev.shadoe.delta.api.SoftApSecurityType
 import dev.shadoe.delta.common.components.FadeInExpanded
 import dev.shadoe.delta.common.components.FoldableWrapper
 import dev.shadoe.delta.settings.components.AppRestartDialog
+import dev.shadoe.delta.settings.components.AutoEnableBtDebugToastsField
+import dev.shadoe.delta.settings.components.AutoEnableOnBluetoothField
 import dev.shadoe.delta.settings.components.AutoShutDownTimeOutField
 import dev.shadoe.delta.settings.components.AutoShutdownField
+import dev.shadoe.delta.settings.components.BluetoothDeviceSelectionField
 import dev.shadoe.delta.settings.components.DataExportField
 import dev.shadoe.delta.settings.components.FrequencyBandField
 import dev.shadoe.delta.settings.components.HiddenHotspotField
@@ -132,6 +136,11 @@ fun SettingsScreen(
   val presets by vm.presets.collectAsState(listOf())
   val taskerIntegrationStatus by
     vm.taskerIntegrationStatus.collectAsState(false)
+  val autoEnableOnBtStatus by vm.autoEnableOnBtStatus.collectAsState(false)
+  val autoEnableBtDebugToastsStatus by
+    vm.autoEnableOnBtDebugToastsStatus.collectAsState(false)
+  val selectedBtDevice by vm.selectedBtDevice.collectAsState(null)
+  val pairedBtDevices by vm.pairedBtDevices.collectAsState(emptyList())
   val exportStatus by vm.exportStatus.collectAsState()
   val importStatus by vm.importStatus.collectAsState()
 
@@ -170,6 +179,28 @@ fun SettingsScreen(
   var shouldSavePreset by remember { mutableStateOf(false) }
   var isPresetListShown by remember { mutableStateOf(false) }
   var isTaskerInfoShown by remember { mutableStateOf(false) }
+  var hasBluetoothPermission by remember { mutableStateOf(false) }
+
+  val bluetoothPermissionLauncher =
+    rememberLauncherForActivityResult(
+      contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+      hasBluetoothPermission = isGranted
+      if (isGranted) {
+        vm.loadPairedBluetoothDevices()
+      }
+    }
+
+  // Check if we have Bluetooth permission (only needed on Android 12+)
+  LaunchedEffect(Unit) {
+    hasBluetoothPermission =
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) ==
+          android.content.pm.PackageManager.PERMISSION_GRANTED
+      } else {
+        true // No runtime permission needed on older Android versions
+      }
+  }
 
   LaunchedEffect(importStatus) {
     when (importStatus) {
@@ -289,6 +320,35 @@ fun SettingsScreen(
         )
       }
       item {
+        AutoEnableOnBluetoothField(
+          isEnabled = autoEnableOnBtStatus,
+          onEnabledChange = { vm.updateAutoEnableOnBtStatus(it) },
+        )
+      }
+      if (autoEnableOnBtStatus) {
+        item {
+          BluetoothDeviceSelectionField(
+            selectedDeviceName = selectedBtDevice?.deviceName,
+            pairedDevices = pairedBtDevices,
+            selectedDeviceMac = selectedBtDevice?.macAddress,
+            onDeviceSelected = { mac, name ->
+              vm.setSelectedBluetoothDevice(mac, name)
+            },
+            onRequestPermission = {
+              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                bluetoothPermissionLauncher.launch(
+                  Manifest.permission.BLUETOOTH_CONNECT
+                )
+              }
+            },
+            onLoadDevices = {
+              vm.loadPairedBluetoothDevices()
+            },
+            hasPermission = hasBluetoothPermission,
+          )
+        }
+      }
+      item {
         FrequencyBandField(
           frequencyBand = config.speedType,
           supportedBands = status.capabilities.supportedFrequencyBands,
@@ -365,6 +425,16 @@ fun SettingsScreen(
               vm.updateTaskerIntegrationStatus(it)
             },
             onShowTaskerIntegrationInfo = { isTaskerInfoShown = true },
+          )
+        }
+      }
+      item {
+        FadeInExpanded(isAdvancedSettingsEnabled) {
+          AutoEnableBtDebugToastsField(
+            isEnabled = autoEnableBtDebugToastsStatus,
+            onEnabledChange = {
+              vm.updateAutoEnableOnBtDebugToastsStatus(it)
+            },
           )
         }
       }
