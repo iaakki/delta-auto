@@ -1,9 +1,12 @@
 package dev.shadoe.delta.settings
 
+import android.app.Application
+import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.shadoe.delta.BluetoothAutoEnableService
 import dev.shadoe.delta.api.SoftApConfiguration
 import dev.shadoe.delta.api.SoftApSecurityType
 import dev.shadoe.delta.api.SoftApSpeedType
@@ -37,6 +40,7 @@ private data class SettingsFlags(
 class SettingsViewModel
 @Inject
 constructor(
+  private val application: Application,
   private val softApController: SoftApController,
   private val softApStateStore: SoftApStateStore,
   private val flagsRepository: FlagsRepository,
@@ -250,6 +254,13 @@ constructor(
 
   fun updateAutoEnableOnBtStatus(enabled: Boolean) {
     _flags.update { it.copy(autoEnableOnBtEnabled = enabled) }
+    // Start or stop the foreground service
+    val serviceIntent = Intent(application, BluetoothAutoEnableService::class.java)
+    if (enabled) {
+      application.startForegroundService(serviceIntent)
+    } else {
+      application.stopService(serviceIntent)
+    }
   }
 
   fun updateAutoEnableOnBtDebugToastsStatus(enabled: Boolean) {

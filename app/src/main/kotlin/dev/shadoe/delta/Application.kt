@@ -1,17 +1,24 @@
 package dev.shadoe.delta
 
 import android.app.Application
-import android.bluetooth.BluetoothDevice
-import android.content.IntentFilter
+import android.content.Intent
 import android.util.Log
 import dagger.hilt.android.HiltAndroidApp
 import dev.shadoe.delta.crash.CrashHandlerUtils
+import dev.shadoe.delta.data.FlagsRepository
+import javax.inject.Inject
 import kotlin.system.exitProcess
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 
 @HiltAndroidApp
 class Application : Application() {
-  private val bluetoothReceiver = BluetoothAutoEnableReceiver()
+  @Inject lateinit var flagsRepository: FlagsRepository
+
+  private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
   override fun onCreate() {
     super.onCreate()
@@ -24,12 +31,14 @@ class Application : Application() {
 
     HiddenApiBypass.setHiddenApiExemptions("L")
 
-    // Register Bluetooth receiver dynamically (required since Android 8.0)
-    val filter = IntentFilter().apply {
-      addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
-      addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+    // Start Bluetooth service if Auto Enable on BT is enabled
+    applicationScope.launch {
+      val isAutoEnableEnabled: Boolean = flagsRepository.isAutoEnableOnBtEnabled()
+      if (isAutoEnableEnabled) {
+        val serviceIntent = Intent(this@Application, BluetoothAutoEnableService::class.java)
+        startForegroundService(serviceIntent)
+        Log.d("Application", "Started BluetoothAutoEnableService")
+      }
     }
-    registerReceiver(bluetoothReceiver, filter)
-    Log.d("Application", "Bluetooth receiver registered")
   }
 }
