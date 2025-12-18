@@ -22,5 +22,24 @@ class FlagsRepository @Inject constructor(private val flagsDao: FlagsDao) {
       Flag(flag = ConfigFlag.INSECURE_RECEIVER_ENABLED.ordinal, value = enabled)
     )
 
+  suspend fun isAutoEnableOnBtEnabled() =
+    flagsDao.getFlag(ConfigFlag.AUTO_ENABLE_ON_BT.ordinal) == true
+
+  suspend fun setAutoEnableOnBtStatus(enabled: Boolean) =
+    flagsDao.setFlag(
+      Flag(flag = ConfigFlag.AUTO_ENABLE_ON_BT.ordinal, value = enabled)
+    )
+
+  suspend fun isAutoEnableOnBtDebugToastsEnabled() =
+    flagsDao.getFlag(ConfigFlag.AUTO_ENABLE_ON_BT_DEBUG_TOASTS.ordinal) == true
+
+  suspend fun setAutoEnableOnBtDebugToastsStatus(enabled: Boolean) =
+    flagsDao.setFlag(
+      Flag(
+        flag = ConfigFlag.AUTO_ENABLE_ON_BT_DEBUG_TOASTS.ordinal,
+        value = enabled,
+      )
+    )
+
   suspend fun debugDumpFlags() = flagsDao.dump()
 }
