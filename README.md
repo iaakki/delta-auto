@@ -1,5 +1,7 @@
 ## delta
 
+***This is just a test fork. This reworks Delta a bit and adds an Auto Hotspot feature. This is probably the leanest way to make Android 16 device to enable wifi hotspot when you connect to your Car bluetooth. -iaakki***
+
 This app allows accessing advanced hotspot settings not exposed through the
 system settings app on devices that use Stock Android (Pixel, Nothing, etc.)
 
