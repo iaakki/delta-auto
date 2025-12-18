@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.shadoe.delta.api.SoftApConfiguration
 import dev.shadoe.delta.api.SoftApSecurityType
 import dev.shadoe.delta.api.SoftApSpeedType
+import dev.shadoe.delta.data.BluetoothRepository
 import dev.shadoe.delta.data.FlagsRepository
 import dev.shadoe.delta.data.database.ConfigDBBackupManager
 import dev.shadoe.delta.data.database.dao.PresetDao
@@ -26,7 +27,10 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-private data class SettingsFlags(val insecureReceiverEnabled: Boolean)
+private data class SettingsFlags(
+  val insecureReceiverEnabled: Boolean,
+  val autoEnableOnBtEnabled: Boolean,
+)
 
 @HiltViewModel
 class SettingsViewModel
@@ -35,15 +39,27 @@ constructor(
   private val softApController: SoftApController,
   private val softApStateStore: SoftApStateStore,
   private val flagsRepository: FlagsRepository,
+  private val bluetoothRepository: BluetoothRepository,
   private val presetDao: PresetDao,
   private val configDBBackupManager: ConfigDBBackupManager,
 ) : ViewModel() {
   private val _config = MutableStateFlow(softApStateStore.config.value)
   private val _results = MutableStateFlow(UpdateResults())
   private val _flags =
-    MutableStateFlow(SettingsFlags(insecureReceiverEnabled = false))
+    MutableStateFlow(
+      SettingsFlags(
+        insecureReceiverEnabled = false,
+        autoEnableOnBtEnabled = false,
+      )
+    )
   private val _importStatus = MutableStateFlow(ImportStatus.Idle)
   private val _exportStatus = MutableStateFlow(ExportStatus.Idle)
+  private val _selectedBtDevice =
+    MutableStateFlow<dev.shadoe.delta.data.database.models.BluetoothDevice?>(
+      null
+    )
+  private val _pairedBtDevices =
+    MutableStateFlow<List<Pair<String, String>>>(emptyList())
 
   val status = softApStateStore.status
   val config = _config.asStateFlow()
@@ -51,6 +67,8 @@ constructor(
   val presets = presetDao.observePresets()
   val importStatus = _importStatus.asStateFlow()
   val exportStatus = _exportStatus.asStateFlow()
+  val selectedBtDevice = _selectedBtDevice.asStateFlow()
+  val pairedBtDevices = _pairedBtDevices.asStateFlow()
 
   val defaultDBName = ConfigDBBackupManager.DB_NAME
 
@@ -65,11 +83,16 @@ constructor(
     }
     viewModelScope.launch {
       updateTaskerIntegrationStatus(flagsRepository.isInsecureReceiverEnabled())
+      updateAutoEnableOnBtStatus(flagsRepository.isAutoEnableOnBtEnabled())
+      _selectedBtDevice.value = bluetoothRepository.getSelectedDevice()
     }
   }
 
   @OptIn(ExperimentalCoroutinesApi::class)
   val taskerIntegrationStatus = _flags.mapLatest { it.insecureReceiverEnabled }
+
+  @OptIn(ExperimentalCoroutinesApi::class)
+  val autoEnableOnBtStatus = _flags.mapLatest { it.autoEnableOnBtEnabled }
 
   @OptIn(ExperimentalTime::class)
   fun convertUnixTSToTime(timestamp: Long) =
@@ -216,6 +239,21 @@ constructor(
     _flags.update { it.copy(insecureReceiverEnabled = enabled) }
   }
 
+  fun updateAutoEnableOnBtStatus(enabled: Boolean) {
+    _flags.update { it.copy(autoEnableOnBtEnabled = enabled) }
+  }
+
+  fun loadPairedBluetoothDevices() {
+    _pairedBtDevices.value = bluetoothRepository.getPairedDevices()
+  }
+
+  fun setSelectedBluetoothDevice(macAddress: String, deviceName: String) {
+    viewModelScope.launch {
+      bluetoothRepository.setSelectedDevice(macAddress, deviceName)
+      _selectedBtDevice.value = bluetoothRepository.getSelectedDevice()
+    }
+  }
+
   fun exportData(uri: Uri) {
     viewModelScope.launch {
       _exportStatus.update { ExportStatus.Processing }
@@ -248,6 +286,9 @@ constructor(
     viewModelScope.launch {
       flagsRepository.setInsecureReceiverStatus(
         _flags.value.insecureReceiverEnabled
+      )
+      flagsRepository.setAutoEnableOnBtStatus(
+        _flags.value.autoEnableOnBtEnabled
       )
     }
     return softApController.updateSoftApConfiguration(_config.value)

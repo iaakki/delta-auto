@@ -36,4 +36,9 @@ object DaoModule {
   @Provides
   fun providePresetDao(@ConfigDatabase configDB: ConfigDB) =
     configDB.presetDao()
+
+  @Singleton
+  @Provides
+  fun provideBluetoothDeviceDao(@ConfigDatabase configDB: ConfigDB) =
+    configDB.bluetoothDeviceDao()
 }

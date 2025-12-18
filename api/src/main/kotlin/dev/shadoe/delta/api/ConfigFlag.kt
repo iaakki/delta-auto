@@ -23,4 +23,10 @@ enum class ConfigFlag {
    * insecure receivers.
    */
   INSECURE_RECEIVER_ENABLED,
+
+  /**
+   * Enable automatic hotspot start when a specific Bluetooth device connects,
+   * and automatic stop when it disconnects.
+   */
+  AUTO_ENABLE_ON_BT,
 }
