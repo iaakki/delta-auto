@@ -137,6 +137,15 @@
     <string name="auto_shutdown_60">1 hour</string>
     <string name="auto_shutdown_default">Default</string>
     <string name="auto_shutdown_timeout_desc">Turns off hotspot after above set time if no devices are connected.</string>
+    <string name="auto_enable_on_bt_field_icon">Bluetooth Auto Enable Icon</string>
+    <string name="auto_enable_on_bt_field_title">Auto Enable on BT</string>
+    <string name="auto_enable_on_bt_field_desc">Automatically enable hotspot when selected Bluetooth device connects.</string>
+    <string name="bt_device_selection_field_icon">Bluetooth Device Icon</string>
+    <string name="bt_device_selection_field_title">Select BT Device</string>
+    <string name="bt_device_selection_no_device">No device selected</string>
+    <string name="bt_device_selection_button">Select Device</string>
+    <string name="bt_permission_required">Bluetooth permission required</string>
+    <string name="bt_permission_rationale">This permission is needed to detect paired Bluetooth devices and monitor connections.</string>
     <string name="presets_setting">Presets</string>
     <string name="presets_field_icon">Presets icon</string>
     <string name="presets_field_desc">Save and restore various hotspot settings for quickly switching between them.</string>
