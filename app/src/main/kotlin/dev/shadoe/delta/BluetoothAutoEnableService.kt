@@ -38,13 +38,27 @@ class BluetoothAutoEnableService : Service() {
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     Log.d(TAG, "Service started")
 
+    // CRITICAL: Must call startForeground() immediately to avoid crash on Android 16+
+    // Create a basic notification synchronously
+    val basicNotification =
+      NotificationCompat.Builder(this, CHANNEL_ID)
+        .setContentTitle("Auto Enable on Bluetooth")
+        .setContentText("Starting...")
+        .setSmallIcon(R.drawable.ic_launcher_foreground)
+        .setOngoing(true)
+        .setPriority(NotificationCompat.PRIORITY_LOW)
+        .build()
+    startForeground(NOTIFICATION_ID, basicNotification)
+
     serviceScope.launch {
       // Check if feature is enabled
       val isEnabled: Boolean = flagsRepository.isAutoEnableOnBtEnabled()
 
       if (isEnabled) {
-        // Start as foreground service
-        startForeground(NOTIFICATION_ID, createNotification())
+        // Update notification with device info
+        val notification = createNotification()
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.notify(NOTIFICATION_ID, notification)
 
         // Register Bluetooth receiver if not already registered
         if (!isReceiverRegistered) {
