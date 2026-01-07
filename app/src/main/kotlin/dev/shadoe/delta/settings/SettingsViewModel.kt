@@ -275,6 +275,14 @@ constructor(
     viewModelScope.launch {
       bluetoothRepository.setSelectedDevice(macAddress, deviceName)
       _selectedBtDevice.value = bluetoothRepository.getSelectedDevice()
+      
+      // Update the foreground service notification if it's running
+      if (flagsRepository.isAutoEnableOnBtEnabled()) {
+        val updateIntent = Intent(application, BluetoothAutoEnableService::class.java).apply {
+          action = BluetoothAutoEnableService.ACTION_UPDATE_NOTIFICATION
+        }
+        application.startService(updateIntent)
+      }
     }
   }
 
