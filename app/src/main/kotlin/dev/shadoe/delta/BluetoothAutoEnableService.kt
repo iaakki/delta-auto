@@ -36,7 +36,7 @@ class BluetoothAutoEnableService : Service() {
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-    Log.d(TAG, "Service started")
+    Log.d(TAG, "Service started with action: ${intent?.action}")
 
     // CRITICAL: Must call startForeground() immediately to avoid crash on Android 16+
     // Create a basic notification synchronously
@@ -50,30 +50,40 @@ class BluetoothAutoEnableService : Service() {
         .build()
     startForeground(NOTIFICATION_ID, basicNotification)
 
-    serviceScope.launch {
-      // Check if feature is enabled
-      val isEnabled: Boolean = flagsRepository.isAutoEnableOnBtEnabled()
-
-      if (isEnabled) {
-        // Update notification with device info
-        val notification = createNotification()
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager.notify(NOTIFICATION_ID, notification)
-
-        // Register Bluetooth receiver if not already registered
-        if (!isReceiverRegistered) {
-          val filter = IntentFilter().apply {
-            addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
-            addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
-          }
-          registerReceiver(bluetoothReceiver, filter)
-          isReceiverRegistered = true
-          Log.d(TAG, "Bluetooth receiver registered in service")
+    // Handle different actions
+    when (intent?.action) {
+      ACTION_UPDATE_NOTIFICATION -> {
+        // Just update the notification
+        serviceScope.launch {
+          updateNotification()
         }
-      } else {
-        // Feature disabled, stop the service
-        Log.d(TAG, "Feature disabled, stopping service")
-        stopSelf()
+      }
+      else -> {
+        // Normal start
+        serviceScope.launch {
+          // Check if feature is enabled
+          val isEnabled: Boolean = flagsRepository.isAutoEnableOnBtEnabled()
+
+          if (isEnabled) {
+            // Update notification with device info
+            updateNotification()
+
+            // Register Bluetooth receiver if not already registered
+            if (!isReceiverRegistered) {
+              val filter = IntentFilter().apply {
+                addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+                addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+              }
+              registerReceiver(bluetoothReceiver, filter)
+              isReceiverRegistered = true
+              Log.d(TAG, "Bluetooth receiver registered in service")
+            }
+          } else {
+            // Feature disabled, stop the service
+            Log.d(TAG, "Feature disabled, stopping service")
+            stopSelf()
+          }
+        }
       }
     }
 
@@ -115,6 +125,13 @@ class BluetoothAutoEnableService : Service() {
     notificationManager.createNotificationChannel(channel)
   }
 
+  private suspend fun updateNotification() {
+    val notification = createNotification()
+    val notificationManager = getSystemService(NotificationManager::class.java)
+    notificationManager.notify(NOTIFICATION_ID, notification)
+    Log.d(TAG, "Notification updated")
+  }
+
   private suspend fun createNotification(): Notification {
     val selectedDevice = bluetoothRepository.getSelectedDevice()
     val deviceName = selectedDevice?.deviceName ?: "Unknown device"
@@ -145,5 +162,6 @@ class BluetoothAutoEnableService : Service() {
     private const val TAG = "BtAutoEnableService"
     private const val CHANNEL_ID = "auto_enable_bt_service"
     private const val NOTIFICATION_ID = 1001
+    const val ACTION_UPDATE_NOTIFICATION = "dev.shadoe.delta.ACTION_UPDATE_NOTIFICATION"
   }
 }
